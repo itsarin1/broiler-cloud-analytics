@@ -1,0 +1,40 @@
+name: Broiler Cloud Analytics Engine
+
+on:
+  schedule:
+    # Menjalankan skrip setiap 5 menit (FR-14)
+    - cron: '*/5 * * * *'
+  # Tombol manual untuk testing langsung saat presentasi/demo
+  workflow_dispatch:
+
+permissions:
+  # Izin wajib agar GitHub Actions bisa menyimpan file CSV ke repo (FR-15)
+  contents: write
+
+jobs:
+  run-analytics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Ambil Kode Repositori
+        uses: actions/checkout@v4
+
+      - name: 2. Siapkan Environment Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 3. Instal Library Python
+        run: pip install -r requirements.txt
+
+      - name: 4. Jalankan Analitik & Kirim ke Blynk
+        env:
+          BLYNK_TOKEN: ${{ secrets.BLYNK_TOKEN }}
+        run: python analytics.py
+
+      - name: 5. Simpan Arsip CSV ke GitHub
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update log & arsip CSV analitik" && git push)
