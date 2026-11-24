@@ -1,40 +1,37 @@
-name: Broiler Cloud Analytics Engine
-
+name: Kandang Ayam - Analytics Terintegrasi
 on:
-  schedule:
-    # Menjalankan skrip setiap 5 menit (FR-14)
-    - cron: '*/5 * * * *'
-  # Tombol manual untuk testing langsung saat presentasi/demo
   workflow_dispatch:
-
+  schedule:
+    - cron: '*/5 * * * *'
 permissions:
-  # Izin wajib agar GitHub Actions bisa menyimpan file CSV ke repo (FR-15)
   contents: write
-
+concurrency:
+  group: kandang-analytics
+  cancel-in-progress: false
 jobs:
-  run-analytics:
+  analytics:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 1. Ambil Kode Repositori
-        uses: actions/checkout@v4
-
-      - name: 2. Siapkan Environment Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: 3. Instal Library Python
+      - name: Install dependencies
         run: pip install -r requirements.txt
-
-      - name: 4. Jalankan Analitik & Kirim ke Blynk
+      - name: Run analytics
         env:
           BLYNK_TOKEN: ${{ secrets.BLYNK_TOKEN }}
+          BLYNK_BASE_URL: ${{ vars.BLYNK_BASE_URL }}
+          FEED_TARGET_G_PER_BIRD: ${{ vars.FEED_TARGET_G_PER_BIRD }}
+          TRACKING_FROM_DAY_1: ${{ vars.TRACKING_FROM_DAY_1 }}
+          START_WEIGHT_G: ${{ vars.START_WEIGHT_G }}
         run: python analytics.py
-
-      - name: 5. Simpan Arsip CSV ke GitHub
+      - name: Persist log and state
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update log & arsip CSV analitik" && git push)
+          if ! git diff --cached --quiet; then
+            git commit -m 'Auto-update IoT broiler analytics'
+            git push
+          fi
